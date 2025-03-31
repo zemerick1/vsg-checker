@@ -1,10 +1,9 @@
-# Author - Zak Emerick 2025
 param (
     [Parameter(Mandatory=$true, HelpMessage="Path to the configuration file")]
     [string]$ConfigFilePath,
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per SSID")]
-    [string]$SsidFeatures = "okc,dot11k,dmo-client-threshold 40,rf-band-6ghz,broadcast-filter arp,g-min-tx-rate,a-min-tx-rate,dynamic-multicast-optimization,multicast-rate-optimization",
+    [string]$SsidFeatures = "okc,dot11k,dmo-client-threshold 40,rf-band-6ghz,broadcast-filter arp,g-min-tx-rate,a-min-tx-rate,multicast-rate-optimization,dynamic-multicast-optimization",
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per radio profile")]
     [string]$RadioFeatures = "max-tx-power,40MHZ-intolerance,dot11h"
@@ -14,7 +13,7 @@ param (
 $ssidFeatureArray = $SsidFeatures -split ','
 $radioFeatureArray = $RadioFeatures -split ','
 
-# Define profile-specific features
+# Define profile-specific features (base set)
 $dot11gFeatures = @("max-tx-power", "40MHZ-intolerance", "allowed-channels")
 $dot11aFeatures = @("max-tx-power", "dot11h")
 
@@ -85,7 +84,13 @@ function Analyze-RadioProfile {
     Write-Host "------------------------"
     
     $configContent = $profileConfig -join "`n"
-    $featuresToCheck = if ($profileName -eq "dot11g-radio-profile") { $dot11gFeatures } else { $dot11aFeatures }
+    # Use full base features for the profile type, overridden by $radioFeatureArray if provided
+    $baseFeatures = if ($profileName -like "dot11g-radio-profile*") { $dot11gFeatures } else { $dot11aFeatures }
+    $featuresToCheck = if ($radioFeatureArray.Count -gt 0 -and $RadioFeatures -ne "max-tx-power,40MHZ-intolerance,dot11h") { 
+        $baseFeatures | Where-Object { $_ -in $radioFeatureArray } 
+    } else { 
+        $baseFeatures 
+    }
     
     foreach ($feature in $featuresToCheck) {
         $feature = $feature.Trim()
@@ -99,11 +104,23 @@ function Analyze-RadioProfile {
                     Write-Host " (max power above recommended value of 9)" -ForegroundColor Yellow
                 }
             } else {
-                Write-Host "max-tx-power not set or at default" -ForegroundColor yellow
+                Write-Host "max-tx-power not set" -ForegroundColor Red
             }
-        } elseif ($feature -eq "allowed-channels") {
-            Write-Host "$feature" -ForegroundColor Red -NoNewline
-            Write-host " (dot11g channels are set to non-defaults [1,6,11])" -ForegroundColor Yellow
+        }
+        elseif ($feature -eq "allowed-channels") {
+            if ($configContent -match "allowed-channels\s+(.+)") {
+                $actualValue = $matches[1]
+                $defaultChannels = "1,6,11"
+                if ($actualValue -eq $defaultChannels) {
+                    Write-Host "allowed-channels $actualValue" -ForegroundColor Green
+                } else {
+                    Write-Host "allowed-channels $actualValue" -ForegroundColor Red -NoNewline
+                    Write-Host " (non-default channels)" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "allowed-channels not set" -ForegroundColor Green -NoNewline
+                Write-Host " (default channels 1,6,11 assumed)" -ForegroundColor Yellow
+            }
         }
         elseif ($configContent -match [regex]::Escape($feature)) {
             Write-Host "$feature" -ForegroundColor Green
@@ -138,7 +155,7 @@ try {
             $currentRadioProfile = ""
             $currentConfig = @()
         }
-        elseif ($line -match "^rf (dot11g-radio-profile|dot11a-radio-profile)$") {
+        elseif ($line -match "^rf (dot11g-radio-profile|dot11a-radio-profile)(?:\s+(.+))?$") {
             # Store previous config if exists
             if ($currentSSID -ne "") {
                 $ssids[$currentSSID] = $currentConfig
@@ -146,7 +163,9 @@ try {
                 $radioProfiles[$currentRadioProfile] = $currentConfig
             }
             # Start new radio profile
-            $currentRadioProfile = $matches[1]
+            $radioType = $matches[1]
+            $profileName = if ($matches[2]) { "$radioType $($matches[2])" } else { "$radioType default" }
+            $currentRadioProfile = $profileName
             $currentSSID = ""
             $currentConfig = @()
         }
