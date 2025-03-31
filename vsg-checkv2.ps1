@@ -217,3 +217,10 @@ try {
 catch {
     Write-Host "Error reading the configuration file: $_" -ForegroundColor Red
 }
+
+
+Write-Host "`nLEGEND" -ForegroundColor Cyan
+Write-Host "------------------------"
+Write-Host "Green: Setting is correctly enabled / has a value set. (ie. We only check that NTP has a value, where DMO is just a toggle.)" -ForegroundColor Green
+Write-Host "Yellow: Notes." -ForegroundColor Yellow
+Write-host "Red: Setting is missing or is outside the VSG threshold." -ForegroundColor Red
