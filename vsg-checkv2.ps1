@@ -7,7 +7,7 @@ param (
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per radio profile")]
     [string]$RadioFeatures = "max-tx-power,40MHZ-intolerance,dot11h",
-    # Parameter help description
+
     [Parameter(Mandatory=$false, HelpMessage="8 or 10 (Assumes 10)")]
     [string]$Version = "10"
 )
@@ -34,7 +34,8 @@ $globalFeatures = @(
 
 # Build collection for AOS8 features.
 $globalFeaturesLegacy = @(
-    "client-match"
+    "client-match",
+    "wide-bands 24ghz"
 )
 
 # Add AOS8 only features if version 8 is declared
@@ -224,7 +225,12 @@ try {
             if ($feature -eq "clock timezone none") {
                 Write-Host "clock timezone none" -ForegroundColor Red -NoNewline
                 Write-Host " (Timezone not set)" -ForegroundColor Yellow
-            } else {
+            } 
+            elseif ($feature -eq "wide-bands 24ghz") {
+                Write-Host "wide-bands 24ghz" -ForegroundColor Red -NoNewline
+                Write-Host "(Wide Channel bands enabled on 2.4GHz)" -ForegroundColor Yellow
+            }
+            else {
                 Write-Host "$feature" -ForegroundColor Green
             }
         } else {
