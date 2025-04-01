@@ -6,7 +6,7 @@ Copy an Aruba IAP configuration into a text file. Run this script against the fi
 The example configuration was pulled from an Aruba Central group configuration. 
 
 ```
-powershell.exe -File "path\to\CheckConfigFeatures.ps1" -ConfigFilePath "path\to\your\config.txt"
+powershell.exe -File "vsg-checkv2.ps1" -ConfigFilePath "path\to\your\config.txt"
 
 powershell.exe -File "vsg-checkv2.ps1" -ConfigFilePath "example.conf" -SsidFeatures "okc,dot11k" -RadioFeatures "max-tx-power,dot11h"
 ```
