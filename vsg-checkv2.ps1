@@ -6,7 +6,10 @@ param (
     [string]$SsidFeatures = "okc,dot11k,dmo-client-threshold 40,rf-band-6ghz,broadcast-filter arp,g-min-tx-rate,a-min-tx-rate,multicast-rate-optimization,dynamic-multicast-optimization",
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per radio profile")]
-    [string]$RadioFeatures = "max-tx-power,40MHZ-intolerance,dot11h"
+    [string]$RadioFeatures = "max-tx-power,40MHZ-intolerance,dot11h",
+    # Parameter help description
+    [Parameter(Mandatory=$false, HelpMessage="8 or 10 (Assumes 10)")]
+    [string]$Version = "10"
 )
 
 # Convert feature strings to arrays
@@ -28,6 +31,19 @@ $globalFeatures = @(
     "clock timezone none",
     "virtual-controller-country"
 )
+
+# Build collection for AOS8 features.
+$globalFeaturesLegacy = @(
+    "client-match"
+)
+
+# Add AOS8 only features if version 8 is declared
+if ($Version -eq "8") {
+    $globalFeatures += $globalFeaturesLegacy
+}
+# Hashtables to track tx power from all profiles
+$globalMaxGPower = @{}
+$globalMinAPower = @{}
 
 # Function to process and display SSID analysis
 function Analyze-SSID {
@@ -95,16 +111,23 @@ function Analyze-RadioProfile {
     foreach ($feature in $featuresToCheck) {
         $feature = $feature.Trim()
         if ($feature -eq "max-tx-power") {
-            if ($configContent -match "max-tx-power\s+(\d+)") {
-                $actualValue = [int]$matches[1]
-                if ($actualValue -le 9) {
-                    Write-Host "max-tx-power $actualValue" -ForegroundColor Green
+            if ($configContent -match "max-tx-power\s+(\d+)" -and ($profileName -like "dot11g-radio-profile*")) {
+                $maxgPower = [int]$matches[1]
+                $globalMaxGPower[$profileName] = $maxgPower
+                if ($maxgPower -le 9) {
+                    Write-Host "max-tx-power $maxgPower" -ForegroundColor Green
                 } else {
-                    Write-Host "max-tx-power $actualValue" -ForegroundColor Red -NoNewline
+                    Write-Host "max-tx-power $maxgPower" -ForegroundColor Red -NoNewline
                     Write-Host " (max power above recommended value of 9)" -ForegroundColor Yellow
                 }
-            } else {
-                Write-Host "max-tx-power not set" -ForegroundColor Red
+            } elseif ($configContent -match "min-tx-power\s+(\d+)" -and ($profileName -like "dot11a-radio-profile*")) {
+                $minaPower = [int]$matches[1]
+                $globalMinAPower[$profileName] = $minaPower
+                Write-Host "min-tx-power $minaPower" -ForegroundColor Green -NoNewline
+                Write-Host "(will check power deltas later)" -ForegroundColor Yellow
+            }
+             else {
+                Write-Host "max-tx-power not set or default" -ForegroundColor Red
             }
         }
         elseif ($feature -eq "allowed-channels") {
@@ -199,7 +222,7 @@ try {
     foreach ($feature in $globalFeatures) {
         if ($fullConfig -match [regex]::Escape($feature)) {
             if ($feature -eq "clock timezone none") {
-                Write-Host "clock timezone none" -ForegroundColor Green -NoNewline
+                Write-Host "clock timezone none" -ForegroundColor Red -NoNewline
                 Write-Host " (Timezone not set)" -ForegroundColor Yellow
             } else {
                 Write-Host "$feature" -ForegroundColor Green
@@ -213,6 +236,22 @@ try {
             }
         }
     }
+    # Check tx power delta across all profiles
+if ($globalMaxGPower.Count -gt 0 -and $globalMinAPower.Count -gt 0) {
+    Write-Host "`nTX Power Delta Check" -ForegroundColor Cyan
+    Write-Host "------------------------"
+    foreach ($gProfile in $globalMaxGPower.Keys) {
+        $maxgPower = $globalMaxGPower[$gProfile]
+        foreach ($aProfile in $globalMinAPower.Keys) {
+            $minaPower = $globalMinAPower[$aProfile]
+            $txDelta = $minaPower - $maxgPower
+            if ($txDelta -lt 6) {
+                Write-Host "Delta between '$gProfile' (max-tx-power $maxgPower) and '$aProfile' (min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
+                Write-Host " (tx delta between min/max on 5GHz & 2.4GHz should be at least 6)" -ForegroundColor Yellow
+            }
+        }
+    }
+}
 }
 catch {
     Write-Host "Error reading the configuration file: $_" -ForegroundColor Red
