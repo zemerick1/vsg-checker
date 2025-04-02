@@ -3,10 +3,13 @@ param (
     [string]$ConfigFilePath,
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per SSID")]
-    [string]$SsidFeatures = "okc,dot11k,dmo-client-threshold 40,rf-band-6ghz,broadcast-filter arp,g-min-tx-rate,a-min-tx-rate,multicast-rate-optimization,dynamic-multicast-optimization",
+    [string]$SsidFeatures = "okc,dot11k,dmo-client-threshold 40,rf-band-6ghz,broadcast-filter arp,g-min-tx-rate,a-min-tx-rate,multicast-rate-optimization,dynamic-multicast-optimization,delete-pmkcache",
     
     [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check per radio profile")]
     [string]$RadioFeatures = "max-tx-power,40MHZ-intolerance,dot11h",
+
+    [Parameter(Mandatory=$false, HelpMessage="Comma-separated list of features to check globally")]
+    [string]$GlobalFeatures = "data-encryption-enable,application-monitoring,voip_qos_trusted,dpi,ntp-server,ipm,clock timezone none,virtual-controller-country,pmkcache-timeout",
 
     [Parameter(Mandatory=$false, HelpMessage="8 or 10 (Assumes 10)")]
     [string]$Version = "10"
@@ -21,21 +24,14 @@ $dot11gFeatures = @("max-tx-power", "40MHZ-intolerance", "allowed-channels")
 $dot11aFeatures = @("max-tx-power", "dot11h")
 
 # Global settings to check separately
-$globalFeatures = @(
-    "data-encryption-enable",
-    "application-monitoring",
-    "voip_qos_trusted",
-    "dpi app",
-    "ntp-server",
-    "ipm",
-    "clock timezone none",
-    "virtual-controller-country"
-)
+[array]$globalFeatures = $globalFeatures -split ',' | ForEach-Object { $_.Trim() }
+
 
 # Build collection for AOS8 features.
 $globalFeaturesLegacy = @(
     "client-match",
-    "wide-bands 24ghz"
+    "wide-bands",
+    "rf-band"
 )
 
 # Add AOS8 only features if version 8 is declared
@@ -83,6 +79,15 @@ function Analyze-SSID {
                 Write-Host "a-min-tx-rate not set" -ForegroundColor Red
             }
         }
+        elseif ($feature -like "broadcast-filter*") {
+           if ($configContent -match "broadcast-filter\s+(arp|all)") {
+                $actualValue = $matches[1]
+                Write-Host "broadcast-filter $actualValue" -ForegroundColor Green
+            } else {
+                Write-Host "broadcast-filter" -ForegroundColor Red -NoNewline
+                write-host " (broadcast filter not set for SSID)" -ForegroundColor Yellow
+          } 
+        }
         elseif ($configContent -match [regex]::Escape($feature)) {
             Write-Host "$feature" -ForegroundColor Green
         } else {
@@ -125,7 +130,7 @@ function Analyze-RadioProfile {
                 $minaPower = [int]$matches[1]
                 $globalMinAPower[$profileName] = $minaPower
                 Write-Host "min-tx-power $minaPower" -ForegroundColor Green -NoNewline
-                Write-Host "(will check power deltas later)" -ForegroundColor Yellow
+                Write-Host " (will check power deltas later)" -ForegroundColor Yellow
             }
              else {
                 Write-Host "max-tx-power not set or default" -ForegroundColor Red
@@ -220,26 +225,53 @@ try {
     $fullConfig = $configLines -join "`n"
     Write-Host "`nGlobal Settings Check" -ForegroundColor Cyan
     Write-Host "------------------------"
-    foreach ($feature in $globalFeatures) {
+     foreach ($feature in $globalFeatures) {
         if ($fullConfig -match [regex]::Escape($feature)) {
-            if ($feature -eq "clock timezone none") {
-                Write-Host "clock timezone none" -ForegroundColor Red -NoNewline
-                Write-Host " (Timezone not set)" -ForegroundColor Yellow
-            } 
-            elseif ($feature -eq "wide-bands 24ghz") {
-                Write-Host "wide-bands 24ghz" -ForegroundColor Red -NoNewline
-                Write-Host "(Wide Channel bands enabled on 2.4GHz)" -ForegroundColor Yellow
-            }
-            else {
-                Write-Host "$feature" -ForegroundColor Green
+            switch ($feature) {
+                "clock timezone none" {
+                    Write-Host "clock timezone none" -ForegroundColor Red -NoNewline
+                    Write-Host " (Timezone not set)" -ForegroundColor Yellow
+                }
+                "wide-bands" {
+                    if ($fullConfig -match "wide-bands\s+(24ghz)") {
+                    $actualValue = $matches[1]
+                    Write-Host "wide-bands $actualValue" -ForegroundColor Red -NoNewline
+                    Write-Host " (Wide Channel bands enabled on 2.4GHz)" -ForegroundColor Yellow
+                    } else { Write-Host "wide-bands not enabled on 2.4GHz" -ForegroundColor Green }
+                }
+                "dpi" {
+                    if ($fullConfig -match "dpi\s+(app|all)") {
+                        $actualValue = $matches[1]
+                        Write-Host "dpi $actualValue" -ForegroundColor Green
+                    } else {
+                        Write-Host "dpi (unknown value)" -ForegroundColor Red
+                    }
+                }
+                "pmkcache-timeout" {
+                    if ($fullConfig -match "pmkcache-timeout\s+(\d+)") {
+                        $actualValue = $matches[1]
+                        if ($actualValue -ne '8') {
+                            Write-Host "pmkcache-timeout $actualValue" -ForegroundColor Green -NoNewline
+                            write-host " (recommended value is 8)" -ForegroundColor Yellow
+                        } else { Write-Host "pmkcache-timeout $actualValue" -ForegroundColor Green }
+                    }
+                }
+                "rf-band" {
+                    if ($fullConfig -match "rf-band\s+(all|2.4|5.0)") {
+                        $actualValue = $matches[1]
+                        if ($actualValue -notcontains 'all') {
+                        Write-Host "rf-band $actualValue" -ForegroundColor Red -NoNewline
+                        Write-Host " (recommended value all)" -ForegroundColor Yellow
+                    } else { Write-Host "$feature $actualValue" -ForegroundColor Green }
+                    }
+                }
+                default {
+                    Write-Host "$feature" -ForegroundColor Green
+                }
             }
         } else {
-            if ($feature -eq "virtual-controller-country") {
-                Write-Host "virtual-controller-country" -ForegroundColor Red -NoNewline
-                Write-Host " (Country Code not set)" -ForegroundColor Yellow
-            } else {
-                Write-Host "$feature" -ForegroundColor Red
-            }
+            # Absence of the feature is a simple red output, no special cases
+            Write-Host "$feature" -ForegroundColor Red
         }
     }
     # Check tx power delta across all profiles
@@ -254,7 +286,7 @@ if ($globalMaxGPower.Count -gt 0 -and $globalMinAPower.Count -gt 0) {
             if ($txDelta -lt 6) {
                 Write-Host "Delta between '$gProfile' (max-tx-power $maxgPower) and '$aProfile' (min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
                 Write-Host " (tx delta between min/max on 5GHz & 2.4GHz should be at least 6)" -ForegroundColor Yellow
-            }
+            } else { Write-Host "TX power deltas looks ok." -ForegroundColor Green }
         }
     }
 }
