@@ -114,12 +114,17 @@ function Analyze-RadioProfile {
         $baseFeatures 
     }
     
+    # Extract base radio profile name (e.g., "default" or "non-default")
+    $radioProfileName = if ($profileName -match "(dot11g-radio-profile|dot11a-radio-profile)\s*(.+)?") {
+        if ($matches[2]) { $matches[2] } else { "default" }
+    } else { $profileName }
+    
     foreach ($feature in $featuresToCheck) {
         $feature = $feature.Trim()
         if ($feature -eq "max-tx-power") {
             if ($configContent -match "max-tx-power\s+(\d+)" -and ($profileName -like "dot11g-radio-profile*")) {
                 $maxgPower = [int]$matches[1]
-                $globalMaxGPower[$profileName] = $maxgPower
+                $globalMaxGPower[$radioProfileName] = $maxgPower  # Use base name as key
                 if ($maxgPower -le 9) {
                     Write-Host "max-tx-power $maxgPower" -ForegroundColor Green
                 } else {
@@ -128,11 +133,11 @@ function Analyze-RadioProfile {
                 }
             } elseif ($configContent -match "min-tx-power\s+(\d+)" -and ($profileName -like "dot11a-radio-profile*")) {
                 $minaPower = [int]$matches[1]
-                $globalMinAPower[$profileName] = $minaPower
+                $globalMinAPower[$radioProfileName] = $minaPower  # Use base name as key
                 Write-Host "min-tx-power $minaPower" -ForegroundColor Green -NoNewline
                 Write-Host " (will check power deltas later)" -ForegroundColor Yellow
             }
-             else {
+            else {
                 Write-Host "max-tx-power not set or default" -ForegroundColor Red
             }
         }
@@ -274,19 +279,28 @@ try {
             Write-Host "$feature" -ForegroundColor Red
         }
     }
-    # Check tx power delta across all profiles
+
+# Check tx power delta within each radio profile (dot11a vs dot11g within same profile.)
 if ($globalMaxGPower.Count -gt 0 -and $globalMinAPower.Count -gt 0) {
     Write-Host "`nTX Power Delta Check" -ForegroundColor Cyan
     Write-Host "------------------------"
-    foreach ($gProfile in $globalMaxGPower.Keys) {
-        $maxgPower = $globalMaxGPower[$gProfile]
-        foreach ($aProfile in $globalMinAPower.Keys) {
-            $minaPower = $globalMinAPower[$aProfile]
+    # Get all unique radio profile names
+    $radioProfileNames = ($globalMaxGPower.Keys + $globalMinAPower.Keys) | Sort-Object -Unique
+    foreach ($profile in $radioProfileNames) {
+        if ($globalMaxGPower.ContainsKey($profile) -and $globalMinAPower.ContainsKey($profile)) {
+            $maxgPower = $globalMaxGPower[$profile]
+            $minaPower = $globalMinAPower[$profile]
             $txDelta = $minaPower - $maxgPower
             if ($txDelta -lt 6) {
-                Write-Host "Delta between '$gProfile' (max-tx-power $maxgPower) and '$aProfile' (min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
-                Write-Host " (tx delta between min/max on 5GHz & 2.4GHz should be at least 6)" -ForegroundColor Yellow
-            } else { Write-Host "TX power deltas looks ok." -ForegroundColor Green }
+                Write-Host "Delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
+                Write-Host " (tx delta between min/max on 5GHz & 2.4GHz should be at least 6dBm)" -ForegroundColor Yellow
+            } else {
+                Write-Host "TX power delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Green
+            }
+        } elseif ($globalMaxGPower.ContainsKey($profile)) {
+            Write-Host "Radio profile '$profile' has dot11g max-tx-power $($globalMaxGPower[$profile]) but no dot11a min-tx-power" -ForegroundColor Yellow
+        } elseif ($globalMinAPower.ContainsKey($profile)) {
+            Write-Host "Radio profile '$profile' has dot11a min-tx-power $($globalMinAPower[$profile]) but no dot11g max-tx-power" -ForegroundColor Yellow
         }
     }
 }
