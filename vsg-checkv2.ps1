@@ -65,39 +65,39 @@ function Analyze-SSID {
             if ($configContent -match "g-min-tx-rate\s+(\d+)") {
                 $actualValue = $matches[1]
                 if ($actualValue -eq "12") {
-                    Write-Host "g-min-tx-rate 12" -ForegroundColor Green
+                    Write-Host "`u{2714} g-min-tx-rate 12" -ForegroundColor Green
                 } else {
-                    Write-Host "g-min-tx-rate $actualValue" -ForegroundColor Red
+                    Write-Host "`u{2718} g-min-tx-rate $actualValue" -ForegroundColor Red
                 }
             } else {
-                Write-Host "g-min-tx-rate not set" -ForegroundColor Red
+                Write-Host "`u{2718} g-min-tx-rate not set" -ForegroundColor Red
             }
         }
         elseif ($feature -eq "a-min-tx-rate") {
             if ($configContent -match "a-min-tx-rate\s+(\d+)") {
                 $actualValue = $matches[1]
                 if ($actualValue -eq "24") {
-                    Write-Host "a-min-tx-rate 24" -ForegroundColor Green
+                    Write-Host "`u{2714} a-min-tx-rate 24" -ForegroundColor Green
                 } else {
-                    Write-Host "a-min-tx-rate $actualValue" -ForegroundColor Red
+                    Write-Host "`u{2718} a-min-tx-rate $actualValue" -ForegroundColor Red
                 }
             } else {
-                Write-Host "a-min-tx-rate not set" -ForegroundColor Red
+                Write-Host "`u{2718} a-min-tx-rate not set" -ForegroundColor Red
             }
         }
         elseif ($feature -like "broadcast-filter*") {
            if ($configContent -match "broadcast-filter\s+(arp|all)") {
                 $actualValue = $matches[1]
-                Write-Host "broadcast-filter $actualValue" -ForegroundColor Green
+                Write-Host "`u{2714} broadcast-filter $actualValue" -ForegroundColor Green
             } else {
-                Write-Host "broadcast-filter" -ForegroundColor Red -NoNewline
+                Write-Host "`u{2718} broadcast-filter" -ForegroundColor Red -NoNewline
                 write-host " (broadcast filter not set for SSID)" -ForegroundColor Yellow
           } 
         }
         elseif ($configContent -match [regex]::Escape($feature)) {
-            Write-Host "$feature" -ForegroundColor Green
+            Write-Host "`u{2714} $feature" -ForegroundColor Green
         } else {
-            Write-Host "$feature" -ForegroundColor Red
+            Write-Host "`u{2718} $feature" -ForegroundColor Red
         }
     }
 }
@@ -132,19 +132,19 @@ function Analyze-RadioProfile {
                 $maxgPower = [int]$matches[1]
                 $globalMaxGPower[$radioProfileName] = $maxgPower  # Use base name as key
                 if ($maxgPower -le 9) {
-                    Write-Host "max-tx-power $maxgPower" -ForegroundColor Green
+                    Write-Host "`u{2714} max-tx-power $maxgPower" -ForegroundColor Green
                 } else {
-                    Write-Host "max-tx-power $maxgPower" -ForegroundColor Red -NoNewline
+                    Write-Host "`u{2718} max-tx-power $maxgPower" -ForegroundColor Red -NoNewline
                     Write-Host " (max power above recommended value of 9)" -ForegroundColor Yellow
                 }
             } elseif ($configContent -match "min-tx-power\s+(\d+)" -and ($profileName -like "dot11a-radio-profile*")) {
                 $minaPower = [int]$matches[1]
                 $globalMinAPower[$radioProfileName] = $minaPower  # Use base name as key
-                Write-Host "min-tx-power $minaPower" -ForegroundColor Green -NoNewline
+                Write-Host "`u{2714} min-tx-power $minaPower" -ForegroundColor Green -NoNewline
                 Write-Host " (will check power deltas later)" -ForegroundColor Yellow
             }
             else {
-                Write-Host "max-tx-power not set or default" -ForegroundColor Red
+                Write-Host "`u{2718} max-tx-power not set or default" -ForegroundColor Red
             }
         }
         elseif ($feature -eq "allowed-channels") {
@@ -152,20 +152,20 @@ function Analyze-RadioProfile {
                 $actualValue = $matches[1]
                 $defaultChannels = "1,6,11"
                 if ($actualValue -eq $defaultChannels) {
-                    Write-Host "allowed-channels $actualValue" -ForegroundColor Green
+                    Write-Host "`u{2714} allowed-channels $actualValue" -ForegroundColor Green
                 } else {
-                    Write-Host "allowed-channels $actualValue" -ForegroundColor Red -NoNewline
+                    Write-Host "`u{2718} allowed-channels $actualValue" -ForegroundColor Red -NoNewline
                     Write-Host " (non-default channels)" -ForegroundColor Yellow
                 }
             } else {
-                Write-Host "allowed-channels not set" -ForegroundColor Green -NoNewline
+                Write-Host "`u{2714} allowed-channels not set" -ForegroundColor Green -NoNewline
                 Write-Host " (default channels 1,6,11 assumed)" -ForegroundColor Yellow
             }
         }
         elseif ($configContent -match [regex]::Escape($feature)) {
-            Write-Host "$feature" -ForegroundColor Green
+            Write-Host "`u{2714} $feature" -ForegroundColor Green
         } else {
-            Write-Host "$feature" -ForegroundColor Red
+            Write-Host "`u{2718} $feature" -ForegroundColor Red
         }
     }
 }
@@ -240,49 +240,49 @@ try {
         if ($fullConfig -match [regex]::Escape($feature)) {
             switch ($feature) {
                 "clock timezone none" {
-                    Write-Host "clock timezone none" -ForegroundColor Red -NoNewline
+                    Write-Host "`u{2718} clock timezone none" -ForegroundColor Red -NoNewline
                     Write-Host " (Timezone not set)" -ForegroundColor Yellow
                 }
                 "wide-bands" {
                     if ($fullConfig -match "wide-bands\s+(24ghz)") {
                     $actualValue = $matches[1]
-                    Write-Host "wide-bands $actualValue" -ForegroundColor Red -NoNewline
+                    Write-Host "`u{2718} wide-bands $actualValue" -ForegroundColor Red -NoNewline
                     Write-Host " (Wide Channel bands enabled on 2.4GHz)" -ForegroundColor Yellow
-                    } else { Write-Host "wide-bands not enabled on 2.4GHz" -ForegroundColor Green }
+                    } else { Write-Host "`u{2714} wide-bands not enabled on 2.4GHz" -ForegroundColor Green }
                 }
                 "dpi" {
                     if ($fullConfig -match "dpi\s+(app|all)") {
                         $actualValue = $matches[1]
-                        Write-Host "dpi $actualValue" -ForegroundColor Green
+                        Write-Host "`u{2714} dpi $actualValue" -ForegroundColor Green
                     } else {
-                        Write-Host "dpi (unknown value)" -ForegroundColor Red
+                        Write-Host "`u{2718} dpi (unknown value)" -ForegroundColor Red
                     }
                 }
                 "pmkcache-timeout" {
                     if ($fullConfig -match "pmkcache-timeout\s+(\d+)") {
                         $actualValue = $matches[1]
                         if ($actualValue -ne '8') {
-                            Write-Host "pmkcache-timeout $actualValue" -ForegroundColor Green -NoNewline
+                            Write-Host "`u{2714} pmkcache-timeout $actualValue" -ForegroundColor Green -NoNewline
                             write-host " (recommended value is 8)" -ForegroundColor Yellow
-                        } else { Write-Host "pmkcache-timeout $actualValue" -ForegroundColor Green }
+                        } else { Write-Host "`u{2714} pmkcache-timeout $actualValue" -ForegroundColor Green }
                     }
                 }
                 "rf-band" {
                     if ($fullConfig -match "rf-band\s+(all|2.4|5.0)") {
                         $actualValue = $matches[1]
                         if ($actualValue -notcontains 'all') {
-                        Write-Host "rf-band $actualValue" -ForegroundColor Red -NoNewline
+                        Write-Host "`u{2718} rf-band $actualValue" -ForegroundColor Red -NoNewline
                         Write-Host " (recommended value all)" -ForegroundColor Yellow
-                    } else { Write-Host "$feature $actualValue" -ForegroundColor Green }
+                    } else { Write-Host "`u{2714} $feature $actualValue" -ForegroundColor Green }
                     }
                 }
                 default {
-                    Write-Host "$feature" -ForegroundColor Green
+                    Write-Host "`u{2714} $feature" -ForegroundColor Green
                 }
             }
         } else {
             # Absence of the feature is a simple red output, no special cases
-            Write-Host "$feature" -ForegroundColor Red
+            Write-Host "`u{2718} $feature" -ForegroundColor Red
         }
     }
 
@@ -298,10 +298,10 @@ if ($globalMaxGPower.Count -gt 0 -and $globalMinAPower.Count -gt 0) {
             $minaPower = $globalMinAPower[$profile]
             $txDelta = $minaPower - $maxgPower
             if ($txDelta -lt 6) {
-                Write-Host "Delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
+                Write-Host "`u{2718} Delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Red -NoNewline
                 Write-Host " (tx delta between min/max on 5GHz & 2.4GHz should be at least 6dBm)" -ForegroundColor Yellow
             } else {
-                Write-Host "TX power delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Green
+                Write-Host "`u{2714} TX power delta for radio profile '$profile' (dot11g max-tx-power $maxgPower, dot11a min-tx-power $minaPower) is $txDelta dBm" -ForegroundColor Green
             }
         } elseif ($globalMaxGPower.ContainsKey($profile)) {
             Write-Host "Radio profile '$profile' has dot11g max-tx-power $($globalMaxGPower[$profile]) but no dot11a min-tx-power" -ForegroundColor Yellow
@@ -312,12 +312,12 @@ if ($globalMaxGPower.Count -gt 0 -and $globalMinAPower.Count -gt 0) {
 }
 }
 catch {
-    Write-Host "Error reading the configuration file: $_" -ForegroundColor Red
+    Write-Host "`u{2718} Error reading the configuration file: $_" -ForegroundColor Red
 }
 
 
 Write-Host "`nLEGEND" -ForegroundColor Cyan
 Write-Host "------------------------"
-Write-Host "Green: Setting is correctly enabled / has a value set. (ie. We only check that NTP has a value, where DMO is just a toggle.)" -ForegroundColor Green
+Write-Host "`u{2714} Green: Setting is correctly enabled / has a value set. (ie. We only check that NTP has a value, where DMO is just a toggle.)" -ForegroundColor Green
 Write-Host "Yellow: Notes." -ForegroundColor Yellow
-Write-host "Red: Setting is missing or is outside the VSG threshold." -ForegroundColor Red
+Write-host "`u{2718} Red: Setting is missing or is outside the VSG threshold." -ForegroundColor Red
