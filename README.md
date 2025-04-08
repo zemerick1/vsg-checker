@@ -8,7 +8,10 @@ The example configuration was pulled from an Aruba Central group configuration.
 ```
 powershell.exe -File "vsg-checkv2.ps1" -ConfigFilePath "path\to\your\config.txt"
 
+powershell.exe -File "vsg-checkv2.ps1" -ConfigFilePath "aos8.conf" -Version 8
+
 powershell.exe -File "vsg-checkv2.ps1" -ConfigFilePath "example.conf" -SsidFeatures "okc,dot11k" -RadioFeatures "max-tx-power,dot11h"
+
 ```
 
 # Caveats
