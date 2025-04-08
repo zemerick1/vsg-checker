@@ -16,22 +16,28 @@ param (
 )
 
 # Convert feature strings to arrays
-$ssidFeatureArray = $SsidFeatures -split ','
-$radioFeatureArray = $RadioFeatures -split ','
-
-# Define profile-specific features (base set)
-$dot11gFeatures = @("max-tx-power", "40MHZ-intolerance", "allowed-channels")
-$dot11aFeatures = @("max-tx-power", "dot11h")
-
-# Global settings to check separately
+[array]$ssidFeatureArray = $SsidFeatures -split ',' | ForEach-Object { $_.Trim() }
+[array]$radioFeatureArray = $RadioFeatures -split ',' | ForEach-Object { $_.Trim() }
 [array]$globalFeatures = $globalFeatures -split ',' | ForEach-Object { $_.Trim() }
 
+# Define profile-specific features (base set)
+$dot11gFeatures = @(
+    "max-tx-power",
+    "40MHZ-intolerance",
+    "allowed-channels"
+    )
+$dot11aFeatures = @(
+    "max-tx-power",
+    "dot11h"
+    )
 
 # Build collection for AOS8 features.
 $globalFeaturesLegacy = @(
     "client-match",
     "wide-bands",
-    "rf-band"
+    "rf-band",
+    "virtual-controller-ip",
+    "dynamic-radius-proxy"
 )
 
 # Add AOS8 only features if version 8 is declared
